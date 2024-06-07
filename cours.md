@@ -12,5 +12,5 @@ CD: Le déploiement continu est une pratique de développement logiciel qui cons
 
 ### Normalisation branches github
 
--   Gitflow
--   TBD: trunk-based development
+- Gitflow
+- TBD: trunk-based development
