@@ -67,38 +67,6 @@ starship preset gruvbox-rainbow -o ~/.config/starship.toml
 
 Le fichier `~/.config/starship.toml` contient désormais la configuration du preset. Il peut être édité librement pour personnaliser les modules affichés.
 
-## 4. Installation de Fastfetch
-
-[Fastfetch](https://github.com/fastfetch-cli/fastfetch) est un outil d'affichage d'informations système (équivalent moderne de Neofetch), écrit en C et bien plus rapide.
-
-```bash
-brew install fastfetch
-```
-
-### Premier lancement
-
-```bash
-fastfetch
-```
-
-### Configuration
-
-Générer un fichier de configuration par défaut :
-
-```bash
-fastfetch --gen-config
-```
-
-Le fichier est créé dans `~/.config/fastfetch/config.jsonc` et peut être édité pour choisir les modules affichés et le logo ASCII.
-
-### Lancement automatique à l'ouverture du terminal
-
-Ajouter à la fin de `~/.zshrc` :
-
-```bash
-fastfetch
-```
-
 ## Vérification finale
 
 Ouvrir un nouvel onglet Ghostty :
