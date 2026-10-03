@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Supprime une session Claude Code et ses artefacts locaux.
+# Usage : clean-session <session-id> [--yes] [--dry-run] [--scan-all]
+set -euo pipefail
+
+PROG="$(basename "$0")"
+
+usage() {
+  cat >&2 <<EOF
+usage: $PROG <session-id> [options]
+
+  <session-id>   identifiant de session (UUID, cf. /status dans Claude Code)
+
+options :
+  -n, --dry-run  liste ce qui serait supprimé, sans rien toucher
+  -y, --yes      ne pose aucune question (requis hors terminal)
+      --scan-all inclut projects/ (391 Mo) dans la recherche par contenu
+  -h, --help     affiche cette aide
+EOF
+  exit 2
+}
+
+SESSION_ID=""
+ASSUME_YES=0
+DRY_RUN=0
+SCAN_ALL=0
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -y | --yes) ASSUME_YES=1 ;;
+    -n | --dry-run) DRY_RUN=1 ;;
+    --scan-all) SCAN_ALL=1 ;;
+    -h | --help) usage ;;
+    -*)
+      echo "option inconnue : $1" >&2
+      usage
+      ;;
+    *)
+      [ -z "$SESSION_ID" ] || {
+        echo "un seul identifiant attendu" >&2
+        usage
+      }
+      SESSION_ID="$1"
+      ;;
+  esac
+  shift
+done
+
+[ -n "$SESSION_ID" ] || usage
+
+# L'ID part dans un motif `find -name` et dans un `rm -rf` : on interdit tout
+# caractère hors [hexa-tiret], sans quoi un joker (`*`) viderait ~/.claude.
+if ! [[ "$SESSION_ID" =~ ^[0-9a-fA-F][0-9a-fA-F-]{7,63}$ ]]; then
+  echo "identifiant de session invalide (UUID attendu) : $SESSION_ID" >&2
+  exit 2
+fi
+
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+[ -d "$CFG" ] || {
+  echo "Dossier de config introuvable : $CFG" >&2
+  exit 1
+}
+
+confirm() { # confirm <question> — sort du script si la réponse n'est pas oui
+  [ "$ASSUME_YES" -eq 1 ] && return 0
+  [ "$DRY_RUN" -eq 1 ] && return 0
+  if [ ! -t 0 ]; then
+    echo "Exécution non interactive : relancez avec --yes (ou --dry-run)." >&2
+    exit 1
+  fi
+  local reponse
+  read -rp "$1 [o/N] " reponse || reponse=""
+  [[ "$reponse" =~ ^[oOyY]$ ]] || {
+    echo "Abandon."
+    exit 1
+  }
+}
+
+purge() { # purge <label> <chemin>
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "   [dry-run] $1 : $2"
+  else
+    echo "🗑  $1 : $2"
+    rm -rf -- "$2"
+  fi
+}
+
+# 1) Inventaire : transcript(s), puis tout fichier dont le NOM contient l'ID
+#    (dossiers de sous-agents, todos, file-history, caches…). -print0 pour
+#    survivre à un nom exotique, dédoublonnage pour n'annoncer chaque chemin
+#    qu'une fois.
+mapfile -d '' -t TRANSCRIPTS < <(
+  find "$CFG/projects" -type f -name "$SESSION_ID.jsonl" -print0 2>/dev/null || true
+)
+mapfile -d '' -t SIDECARS < <(
+  find "$CFG" -name "*$SESSION_ID*" -print0 2>/dev/null || true
+)
+
+declare -A DEJA_VU=()
+CIBLES=()
+LABELS=()
+ajouter() { # ajouter <label> <chemin>
+  [ -e "$2" ] || return 0
+  [ -n "${DEJA_VU["$2"]:-}" ] && return 0
+  DEJA_VU["$2"]=1
+  CIBLES+=("$2")
+  LABELS+=("$1")
+}
+
+for f in ${TRANSCRIPTS[@]+"${TRANSCRIPTS[@]}"}; do
+  ajouter "transcript " "$f"
+  ajouter "sous-agents" "${f%.jsonl}" # dossier homonyme, s'il existe
+done
+for f in ${SIDECARS[@]+"${SIDECARS[@]}"}; do
+  ajouter "annexe     " "$f"
+done
+
+if [ "${#CIBLES[@]}" -eq 0 ]; then
+  echo "Aucun artefact pour $SESSION_ID dans $CFG (session déjà purgée ?)"
+  exit 0
+fi
+
+if [ "${#TRANSCRIPTS[@]}" -eq 0 ]; then
+  echo "⚠️  Aucun transcript pour $SESSION_ID, mais ${#CIBLES[@]} artefact(s) résiduel(s)."
+fi
+
+# 2) Garde-fous. `pgrep -x` cible le binaire : `pgrep -f claude` remontait tout
+#    processus dont la ligne de commande mentionne ~/.claude (shell, éditeur…).
+if pgrep -x claude >/dev/null 2>&1; then
+  echo "⚠️  Un process claude tourne : il réécrira le transcript en sortant."
+  confirm "Continuer quand même ?"
+fi
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  echo
+  echo "À supprimer (${#CIBLES[@]}) :"
+  for i in "${!CIBLES[@]}"; do echo "   - ${CIBLES[$i]}"; done
+  echo
+  confirm "Confirmer la suppression ?"
+fi
+echo
+
+for i in "${!CIBLES[@]}"; do
+  purge "${LABELS[$i]}" "${CIBLES[$i]}"
+done
+
+# 3) Fichiers dont le CONTENU référence l'ID : on signale sans supprimer, car
+#    ils sont mutualisés entre sessions (history.jsonl, .claude.json…).
+#    projects/ est écarté par défaut : 391 Mo à relire pour n'y trouver que les
+#    transcripts d'autres sessions qui citent celle-ci (--scan-all pour l'inclure).
+EXCLUSIONS=(
+  --exclude-dir=plugins
+  --exclude-dir=cache
+  --exclude-dir=paste-cache
+  --exclude-dir=shell-snapshots
+  --exclude-dir=downloads
+  --exclude-dir=backups
+  --exclude-dir=node_modules
+  --exclude-dir=.git
+)
+[ "$SCAN_ALL" -eq 1 ] || EXCLUSIONS+=(--exclude-dir=projects)
+
+echo
+echo "🔎 Fichiers mentionnant encore $SESSION_ID (à nettoyer à la main) :"
+RESIDUS=""
+RESIDUS="$(grep -rl --binary-files=without-match "${EXCLUSIONS[@]}" \
+  -F -e "$SESSION_ID" "$CFG" 2>/dev/null)" || true
+if [ -n "$RESIDUS" ]; then
+  sed 's/^/   - /' <<<"$RESIDUS"
+else
+  echo "   (aucun)"
+  [ "$SCAN_ALL" -eq 1 ] || echo "   ↳ projects/ non scanné, cf. --scan-all"
+fi
+
+echo
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "ℹ️  Dry-run : rien n'a été supprimé."
+else
+  echo "✅ Session $SESSION_ID purgée localement dans $CFG"
+fi
+echo "ℹ️  Les historiques de l'app desktop, du web et de l'extension VS Code sont séparés."
