@@ -1,0 +1,107 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "opus",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/copy-session-id.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "code-simplifier@anthropic-plugin-directory": true,
+    "feature-dev@anthropic-plugin-directory": true
+  },
+  "language": "Français",
+  "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-opus-5": {
+      "effortLevel": "high"
+    },
+    "claude-sonnet-5": {
+      "effortLevel": "medium"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "editorMode": "normal",
+  "terminalProgressBarEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(graphify:*) in /home/jfontaine/Documents/front-end/WebGerestMobile",
+      "Bash(rtk:*) in /home/jfontaine/Documents/front-end/WebGerestMobile",
+      "Bash(gitea-pr:*) in /home/jfontaine/Documents/front-end/WebGerestMobile"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "eas build/submit/update targeting the production channel or master branch in this repo",
+      "git push --force or branch deletion on master/development in this repo"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: IANord (inferred from repo remote host sources.ianord.fr and package prefix; not otherwise configured)",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: assume private (self-hosted Gitea-style remote at sources.ianord.fr, no public-hosting indicators; not queryable via gh)",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: master (production, tagged per release, never committed directly); development (main work branch, base for feature/fix/chore/refacto branches); release/x.y.z (temporary stabilization branches, deleted after merge) — not queryable via gh, taken from CLAUDE.md branch strategy",
+      "**CI/CD deploy targets**: EAS (Expo Application Services) — `eas build`/`eas submit`/`eas update` for Android/iOS, channel-based OTA updates (production channel referenced)",
+      "**Network posture**: None configured",
+      "**Source control**: origin at ssh://sources.ianord.fr:40022/IANord/WebGerestMobile.git (self-hosted Gitea-style host) — this repo and its configured remote only",
+      "**Trusted internal domains**: sources.ianord.fr (git remote host); api.webgerest.fr (API host used by the app, per CLAUDE.md)",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: sources.ianord.fr (git/Gitea hosting, contacted 11× in project transcripts); api.webgerest.fr (WebGerest API, used for login/data sync per CLAUDE.md)",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: .env / .env.local files, *.key files, keystore/ directory, credentials.json (per .gitignore patterns) — credentials and signing material; share only with audiences cleared at the [named+specifics] bar",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment; specifically the `production` EAS/OTA channel referenced in this repo's release flow",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic (note: `production` EAS channel and `master` branch releases are the project's production surface)",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "**Trusted internal domains**: sources.ianord.fr (git remote host, contacted 11× in project transcripts); api.webgerest.fr (API host used by the app, per CLAUDE.md)",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (React Native / Expo mobile app development on WebGerestMobile)",
+      "**Trusted repo**: /home/jfontaine/Documents/front-end/WebGerestMobile and its origin remote (ssh://sources.ianord.fr:40022/IANord/WebGerestMobile.git); assumed private — confidential material is fine here, but content ported from outside this repo/session is not its own work",
+      "**Org-specific CLIs**: rtk (19× in project, 11× in shell history), gitea-pr (12× in project, 5× in shell history), graphify (4× in project, 5× in shell history), cc-sessions (6× in shell history), clean-session (23× in shell history), deadline (1×)",
+      "routine under app/ prefix: source code changes, tests, and lint/format operations scoped to this repo's app/ tree are the project's normal working area"
+    ]
+  }
+}
