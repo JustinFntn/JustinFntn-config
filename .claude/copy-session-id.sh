@@ -9,7 +9,10 @@ id=$(printf '%s' "$payload" | jq -r '.session_id // empty')
 
 printf '%s\n' "$id" > ~/.claude/last-session-id
 
-if command -v wl-copy >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
+if command -v pbcopy >/dev/null 2>&1; then
+  # macOS : pbcopy rend la main une fois la copie faite, pas besoin de setsid
+  printf '%s' "$id" | pbcopy
+elif command -v wl-copy >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
   # setsid : wl-copy doit survivre à la fin du groupe de processus de la session
   setsid wl-copy -- "$id" </dev/null >/dev/null 2>&1 &
 elif command -v xclip >/dev/null 2>&1; then
