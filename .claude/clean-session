@@ -88,21 +88,25 @@ purge() { # purge <label> <chemin>
 # 1) Inventaire : transcript(s), puis tout fichier dont le NOM contient l'ID
 #    (dossiers de sous-agents, todos, file-history, caches…). -print0 pour
 #    survivre à un nom exotique, dédoublonnage pour n'annoncer chaque chemin
-#    qu'une fois.
-mapfile -d '' -t TRANSCRIPTS < <(
+#    qu'une fois. Pas de `mapfile` ni de tableau associatif : le bash livré
+#    avec macOS est en 3.2.
+TRANSCRIPTS=()
+while IFS= read -r -d '' f; do TRANSCRIPTS+=("$f"); done < <(
   find "$CFG/projects" -type f -name "$SESSION_ID.jsonl" -print0 2>/dev/null || true
 )
-mapfile -d '' -t SIDECARS < <(
+SIDECARS=()
+while IFS= read -r -d '' f; do SIDECARS+=("$f"); done < <(
   find "$CFG" -name "*$SESSION_ID*" -print0 2>/dev/null || true
 )
 
-declare -A DEJA_VU=()
 CIBLES=()
 LABELS=()
 ajouter() { # ajouter <label> <chemin>
   [ -e "$2" ] || return 0
-  [ -n "${DEJA_VU["$2"]:-}" ] && return 0
-  DEJA_VU["$2"]=1
+  local c
+  for c in ${CIBLES[@]+"${CIBLES[@]}"}; do
+    [ "$c" = "$2" ] && return 0
+  done
   CIBLES+=("$2")
   LABELS+=("$1")
 }
